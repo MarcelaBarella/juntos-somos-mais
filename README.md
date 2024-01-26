@@ -11,6 +11,9 @@
 * [Power BI](https://learn.microsoft.com/pt-br/power-bi/fundamentals/power-bi-overview)
 
 ## Decisões arquiteturais
+### Diagrama da arquitetura
+![Diagrama](https://github.com/MarcelaBarella/juntos-somos-mais/blob/main/diagrama.png)
+
 ### Arquiteturas Lakehouse e Medallion
 As arquiteturas escolhidas para esta solução são a [Lakehouse](https://www.databricks.com/br/glossary/data-lakehouse) e a [Meddalion](https://www.databricks.com/br/glossary/medallion-architecture) motivado pelo fato de que o time de dados já conta com o uso do Databricks, que consequentemente tem ambas arquiteturas nativas.
 A arquitetura Lakehouse é uma combinação das arquiteturas [Data Warehouse](https://azure.microsoft.com/pt-br/resources/cloud-computing-dictionary/what-is-a-data-warehouse) e [Data Lake](https://azure.microsoft.com/pt-br/resources/cloud-computing-dictionary/what-is-a-data-lake) visando oferecer vantagens referentes a ambas arquiteruras, ou seja, capacidade de gerenciamento e desempenho robustas e armazenamento em grande escala consequentemente. 
