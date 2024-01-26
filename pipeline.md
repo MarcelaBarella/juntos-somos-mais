@@ -6,10 +6,11 @@
 * [Apache Spark](https://spark.apache.org/)
 * [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs)
 * [Azure Delta Lake](https://learn.microsoft.com/pt-br/azure/synapse-analytics/spark/apache-spark-what-is-delta-lake)
+* [Azurre Delta Live Tables](https://learn.microsoft.com/en-us/azure/databricks/delta-live-tables/)
 * [Databricks](https://www.databricks.com/)
 * [Power BI](https://learn.microsoft.com/pt-br/power-bi/fundamentals/power-bi-overview)
 
-## Motivações
+## Decisões arquiteturais
 ### Arquiteturas Lakehouse e Medallion
 As arquiteturas escolhidas para esta solução são a [Lakehouse](https://www.databricks.com/br/glossary/data-lakehouse) e a [Meddalion](https://www.databricks.com/br/glossary/medallion-architecture) motivado pelo fato de que o time de dados já conta com o uso do Databricks, que consequentemente tem ambas arquiteturas nativas.
 A arquitetura Lakehouse é uma combinação das arquiteturas [Data Warehouse](https://azure.microsoft.com/pt-br/resources/cloud-computing-dictionary/what-is-a-data-warehouse) e [Data Lake](https://azure.microsoft.com/pt-br/resources/cloud-computing-dictionary/what-is-a-data-lake) visando oferecer vantagens referentes a ambas arquiteruras, ou seja, capacidade de gerenciamento e desempenho robustas e armazenamento em grande escala consequentemente. 
@@ -24,8 +25,8 @@ A integração do Kafka também foi considerada em relação as ferramentas de p
 Por fim seu gerenciamento de grandes volumes de dados e integração com padrões de arquitetura event driven e ampla comunidade tornam uma ferramenta de interessante adoção para um ecommerce.
 
 ### Processamento
-O processamento dos dados pode ser feitos em diferentes camadas conforme a necessidade. Considerando que o time de dados já possuí um databricks na Azure é pertinente manter o processamento dentro dele já que utilizar outras ferramentas incluiria considerar a possível curva de aprendizado dos membros do time, que demanda tempo, além de possíveis novos custos e afins.
-A ferramenta utilizada para processar e transformar os dados será o Apache Spark do Databricks já que além da equipe de dados já contar com um Databricks o Apache Spark realiza o processamento de dados de forma distribuída e além disso é de fácil integração com o Kafka e com a Azure. Junto ao Apache Spark pode ser utilizado o PySpark do Python para realizar o processamento per se já que possui uma variedade grande de libs de processamento, mas caso a equipe se sinta mais confortavel também é possível usar o Scala no Databricks.
+O processamento dos dados pode ser feitos em diferentes camadas conforme a necessidade. Considerando que o time de dados já possuí um Databricks na Azure é pertinente manter o processamento dentro dele já que utilizar outras ferramentas incluiria considerar a possível curva de aprendizado dos membros do time, que demanda tempo, além de possíveis novos custos e afins.
+A ferramenta utilizada para processar e transformar os dados será o Apache Spark do Databricks já que esta ferramenta realiza o processamento de dados de forma distribuída e além disso é de fácil integração com o Kafka e com a Azure. Junto ao Apache Spark pode ser utilizado o PySpark do Python para realizar o processamento per se pois possui uma variedade grande de libs de processamento, mas caso a equipe se sinta mais confortavel também é possível usar o Scala no Databricks.
 
 #### Camada Streaming
 Esta camada fará o processamento inicial dos dados, ou seja, limpeza, transformações e consolidações.
@@ -39,7 +40,7 @@ Para transformação dos dados recomenda-se considerar:
 * Converter valores Date Time de forma que todos possuam a mesma formatação.
 * Converter os dados categóricos numa mesma formatação, como por exemplo todos ProductNo contendo 5 ou 6 digitos unicos.
 
-Caso futuramente ocorra a necessidade de integrar os dados de pedidos com dados ingeridos de fontes diferentes, realize os processamentos anteriormente citados e/ou que sejam resolvidas quaisquer incossistencias para que durante o "merge" desses dados/data frames as informações se mantenham conssistentes entre si em termos de formatos e afins.
+Caso futuramente ocorra a necessidade de integrar os dados de pedidos com dados ingeridos de fontes diferentes, realize os processamentos anteriormente citados e/ou que sejam resolvidas quaisquer incossistencias para que durante o "merge" desses dados/data frames as informações se mantenham consistentes entre si em termos de formatos e afins.
 
 ### Armazenamento
 #### Camada Bronze
@@ -47,24 +48,24 @@ Considerando o cenário de um ecommerce onde ocorram váriações de preço segu
 A ferramenta sugerida para armazenamento dos dados brutos é o Azure Blob Storage devido a eficiência que proporciona a solução. Essa ferramenta se integra fácilmente com o Databricks que fará o processamento dos dados, é otimizado para o armazenamento de um grande volume de dados sendo mais econômico, possui redundância de dados em multiplos locais geograficos oque consequentemente o torna mais resiliente e torna mais robusta a recuperação e escalabilidade do uso dos dados e afins.
 
 #### Camada Silver
-Nesta camada serão armazenados os dados limpos, normalizados e consolidados. Considerando o cenário de um ecommerce, onde diferentes tipos de analises e construção, por exemplo, de modelos de precificação e recomendação por exemplo que podem ser feitos posteriormente, além de questões de complience e regulamentação de dados como a LGPD dentre outros benefícios a criação de uma camada de armazenamento Silver se faz pertinente.
-A ferramenta escolhida para o armazenamento dos dados desta camada é o Delta Lake uma vez que o time já conta com o Databricks, tornando a curva de aprendizado e integração ferramental menor. Outros motivos para a escolha dessa ferramenta é que a integridade dos dados especialmente sendo real time pode ser garantida pois oferece o uso de transações [ACID](https://www.databricks.com/br/glossary/acid-transactions), ela também oferece leitura e escrita otimizadas e consequentemente desempenho e escalabilidade, controle de versão e snapshots time travel e por consequencia facilidade na auditoria de dados e em analises históricas.
+Nesta camada serão armazenados os dados limpos, normalizados e consolidados. Considerando o cenário de um ecommerce, onde diferentes tipos de analises e construção, por exemplo, de modelos de precificação e recomendação que podem ser feitos posteriormente, além de questões de complience e regulamentação de dados como a LGPD dentre outros benefícios a criação de uma camada de armazenamento Silver se faz pertinente.
+A ferramenta escolhida para o armazenamento dos dados desta camada são as [Delta Live Tables](https://docs.databricks.com/pt/delta-live-tables/index.html) e Delta Lake do Databricks, tornando a curva de aprendizado e integração ferramental menor. Outros motivos para a escolha dessa ferramenta é que a integridade dos dados especialmente sendo real time pode ser garantida pois oferece o uso de transações [ACID](https://www.databricks.com/br/glossary/acid-transactions), ela também oferece leitura e escrita otimizadas e consequentemente desempenho e escalabilidade, controle de versão e snapshots time travel e por consequencia facilidade na auditoria de dados e em analises históricas.
 
 #### Camada Gold
 Nesta camada serão armazenados dados limpos e sumarizados otimizados para leitura (menos normalizações e agregações feitas de modo a atender demandas mais específicas) pois é utilizada para obtenção de insights de forma clara e rápida voltadas a questões de negócios. O armazenamento da camada gold será feito da mesma forma ao que foi feito na camada Silver.
 
 ### Análise/Visualização de Dados:
-A ferramenta escolhida é o Power BI, que é uma ferramenta robusta (oferece uma variedade grande de opções para criação e visualização de relatórios) para a visualização e criação de relatórios de integração nativa com a Azure. Outros motivos para sua escolha incluem a facilidade de uso e consequente autonomia que porprociona devido a sua interface, oque torna acessível para membros não tech da equipe, a governança de dados também é facilitada por ele, ou seja, permissões de acesso de determinados dashboards a determinadas pessoas, que é importante pois o compartilhamento desses dashboards também é facilitado.
+A ferramenta escolhida é o Power BI, que é uma ferramenta robusta por que oferece uma variedade grande de opções para criação e visualização de relatórios e de integração nativa com a Azure. Outros motivos para sua escolha incluem a facilidade de uso e consequente autonomia que porprociona devido a sua interface, oque torna acessível para membros não tech da equipe, a governança de dados também é facilitada por ele, ou seja, permissões de acesso de determinados dashboards a determinadas pessoas, que é importante pois o compartilhamento desses dashboards também é facilitado.
 
 ### Orquestramento
-Mesmo se tratando de uma pipeline em real time o orquestramento das etapas é importante pois garante a integridade do processo, facilita o monitoramento já que o orquestrador pode indicar em qual etapa do workflow ocorreu o erro. Em termos de escalabilidade o orquestrador pode reajustar recursos computacionais conforme necessário e dentre outras vantagens também inclui automatização de rotinas d facilita a documentação da pipeline como um todo.
+Mesmo se tratando de uma pipeline em real time, o orquestramento das etapas é importante pois garante a integridade do processo e facilita o monitoramento, já que pode indicar em qual etapa do workflow ocorreu o erro com mais facilidade do que procurar o erro individualmente até achar a parte problematica. Em termos de escalabilidade o orquestrador pode reajustar recursos computacionais conforme necessário e dentre outras vantagens também inclui automatização de rotinas facilita a documentação da pipeline como um todo.
 A ferramenta utilizada para o orquestramento é o Apache Airflow que orquestra workflows através de [DAGs](https://airflow.apache.org/docs/apache-airflow/stable/core-concepts/dags.html) escritas em Python, sendo estas fácilmente escalaveis conforme o aumento no volume de dados, tarefas e workflows. Além disso ele contruibuí com as vantagens de orquestar uma solução mesmo que esta seja real time já que facilita o gerencimento de dependencias, permite configurar politicas de retry e agendamentos complexos, fácil integração com outras ferramentas adotadas como o Databricks e Kafka dentre outros.
 
 ## Guia de implementação
 ### Ingestão
 Os campos que dizem respeito as informações do pedido enviados pelos producers serão:
 1. TransactionNo (categoria): um campo de valor numérico único para cada transação. A letra "C" no código indica um pedido cancelado.
-2. Date (numerico): a data em que foi gerada cada transação.
+2. Date (string): a data em que foi gerada cada transação.
 3. ProductNo (categoria): um número de cinco ou seis digitos com caracteres únicos utilizado para identificar um produto específico.
 4. Product (categoria): nome do item/produto.
 5. Price (numerico): preço unitario de cada produto em libras esterlinas (£).
@@ -77,10 +78,10 @@ Para fazer a ingestão de dados siga os seguintes passos:
 
 2. Serão então definidos os producers que são os responsáveis por assinar os tópicos e enviar as mensagens (neste caso os detalhes dos pedidos) para eles para que possam ser posteriormente processados. Para o formato de mensagem será usado o JSON pois além de mais comum, é fácil de processar já que pode ser organizado em key-value.
 {
-  "TransactionNo": "123456",
-  "Date": "2024-01-20",
-  "ProductNo": "A12345",
-  "Product": "Widget",
+  "TransactionNo": "581482",
+  "Date": "12/9/2019",
+  "ProductNo": "22485",
+  "Product": "Bull Dog Bottle Opener",
   "Price": 19.99,
   "Quantity": 2,
   "CustomerNo": "54321",

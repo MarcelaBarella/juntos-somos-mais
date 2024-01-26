@@ -1,9 +1,9 @@
 """"
-Este arquivo tem como finalidade apresentar exemplos de limpeza, 
-transformação e analíses que posem ser feitas nos dados da camada
-bronze, sendo possível utilizar os notebooks do databricks para
-testar os códigos a seguir após fazer as devidas alteraçoes para a
-leitura da camada bronze.
+Este arquivo tem como finalidade servir de exemplo de algumas
+transformações que podem ser feitas nos dados da camada bronze
+para que sejam persistidos na camada Silver, para efetivamente
+utilizar esse código é necessário fazer as alterações de leitura
+e escrita para os notebooks no databricks.
 """
 
 from pyspark.sql import SparkSession
@@ -14,14 +14,17 @@ from pyspark.sql.functions import (isnan,
                                    round)
 from pyspark.sql.types import IntegerType
 
+# Mude para o path da camada bronze após fazer o mount do blob storage.
+bronze_location = "/mnt/<mount-name>/<path-to-bronze-layer>"
 
-bronze_location = "/path/to/bronze/directory"
+# Mude para o path da camada Silver
+silver_location = "/mnt/delta/<path-to-silver-layer>"
 
 spark = SparkSession.builder \
         .appName("Bronze layer data manipulation") \
         .getOrCreate()
 
-df = spark.read.csv(bronze_location, header=True, inferSchema=True)
+df = spark.read.json(bronze_location)
 
 # Verifica e mostra se existem transações duplicadas.
 df \
@@ -35,6 +38,10 @@ df \
 
 # Para remover as duplicações.
 df = df.dropDuplicates()
+
+# Normalizando colunas que estejam vazias.
+df = df.na.fill({"Price": 0, "Quantity": 0})
+df = df.na.fill({"Location": "Unknown"})
 
 # Verifica e mostra se existem valores faltantes no df.
 df.select([count(when(isnan(c), c)).alias(c) for c in df.columns]).show()
@@ -50,29 +57,7 @@ df = df.filter(col("Quantity") > 0)
 df = df.withColumn("TotalSalesAmount", round(col("Quantity") * col("Price"), 2))
 df = df.na.fill({"TotalSalesAmount": 0})
 
-# 
-total_sales_per_product = df.groupBy("ProductNo").agg(
-    round(sum("TotalSalesAmount"), 2).alias("TotalSales"))
+df = df.join(df, "ProductID")
 
-# Também é possível fazer certas analises/transformações usando SQL
-# Crie uma view para rodar as queires
-df.createOrReplaceTempView("transactions")
-
-# Use o spark sql e a query como parametro
-# Query produtos unicos.
-unique_products = spark.sql("SELECT COUNT(DISTINCT ProductNo) AS UniqueProducts FROM transactions")
-
-# Query clientes unicos.
-unique_customers = spark.sql("SELECT COUNT(DISTINCT CustomerID) AS UniqueCustomers FROM transactions")
-
-# Query cancelamentos.
-query = """
-SELECT
-    ROUND(SUM(ABS(Quantity) * Price), 2) AS TotalCancellationValue,
-    SUM(ABS(Quantity)) AS TotalCancellationQuantity
-FROM
-    transactions
-WHERE
-    Quantity < 0
-"""
-cancellation_stats = spark.sql(query)
+# Também é possível salvar como streaming como indicado na documentação.
+df.write.format("delta").save(silver_location)
